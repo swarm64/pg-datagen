@@ -10,7 +10,6 @@ import sys
 from multiprocessing import Pool
 
 import lib.db
-import lib.generator
 import lib.random
 
 from lib.base_object import BaseObject
