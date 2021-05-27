@@ -1,9 +1,11 @@
 
+import hashlib
 import random
 
 from datetime import timedelta
 from uuid import uuid4
 
+import mimesis.random as mimesis_random
 import numpy as np
 
 from mimesis.schema import Field
@@ -55,12 +57,12 @@ class Random:
     def _int_to_granularity(cls, value, granularity):
         return int(int(value / granularity) * granularity)
 
-    def whole_number(self, start, end, granularity):
+    def whole_number(self, start, end, granularity=1):
         """Produce a random whole number with the given granularity."""
         number = self.field('integer_number', start=start, end=end)
         return Random._int_to_granularity(number, granularity)
 
-    def whole_number_lognormal(self, mean, median, granularity, upper_limit=None):
+    def whole_number_lognormal(self, mean, median, granularity=1, upper_limit=None):
         """Produce a random log-normal distributed number."""
         number = self.sample_income(mean, median)[0]
         number = Random._int_to_granularity(number, granularity)
@@ -76,7 +78,8 @@ class Random:
 
     def fraction(self, start, end, granularity):
         """Get a fraction within bounds."""
-        number = self.whole_number(start * granularity, end * granularity, granularity)
+        number = self.whole_number(start * granularity, end * granularity,
+                                   granularity=granularity)
         return number / granularity
 
     def employment(self):
@@ -143,7 +146,8 @@ class Random:
 
     def md5(self):
         """Returns random md5 string."""
-        return self.field('hash', algorithm=Algorithm.MD5)
+        data_md5 = hashlib.new('md5', self.uuid().bytes, usedforsecurity=False)
+        return data_md5.hexdigest()
 
     def choose_from_list(self, choices, picks=None, probs=None):
         """Returns a choice from a provided list."""
@@ -153,3 +157,7 @@ class Random:
     def data(self, uuid, data_type, serialization_type, length):
         """Get random data."""
         return RandomData(self, uuid, data_type, serialization_type, length)
+
+    def string(self, length):
+        """Generate a random string of length between min & max chars."""
+        return mimesis_random.random.randstr(length=length)

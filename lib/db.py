@@ -3,6 +3,9 @@ import io
 
 import psycopg2
 
+from loguru import logger
+
+
 class DB:
     def __init__(self, dsn):
         self.conn = None
@@ -33,7 +36,7 @@ class DB:
         return data
 
     def ingest_table(self, table, objs):
-        print(f'Ingesting { table }: { len(objs) }')
+        logger.info(f'Ingesting { table }: { len(objs) }')
 
         self.cur.copy_expert(f'''
             COPY { table }
@@ -41,5 +44,5 @@ class DB:
             WITH(FORMAT CSV, DELIMITER '|')''', DB._objs_to_csv(objs))
 
     def truncate_table(self, table):
-        print(f'Truncating { table }')
+        logger.info(f'Truncating { table }')
         self.cur.execute(f'TRUNCATE { table } CASCADE')
