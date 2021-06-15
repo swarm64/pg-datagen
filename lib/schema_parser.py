@@ -82,7 +82,7 @@ class Schema:
         for stmt in self.schema['stmts']:
             create_stmt = stmt.get('stmt', {}).get('CreateStmt', {})
             if create_stmt:
-                schema_name = create_stmt['relation']['schemaname']
+                schema_name = create_stmt['relation'].get('schemaname', 'public')
                 table_name = create_stmt['relation']['relname']
 
                 for column in create_stmt['tableElts']:

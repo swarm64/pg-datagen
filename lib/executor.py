@@ -1,9 +1,5 @@
 
-import glob
-import importlib.util
-import inspect
 import math
-import os
 import sys
 
 from concurrent.futures import ProcessPoolExecutor, as_completed
@@ -13,7 +9,6 @@ from typing import List, Tuple
 from lib.base_object import BaseObject, Dependency
 from lib.db import DB
 from lib.random import Random
-from lib.schema_parser import Schema
 
 from loguru import logger
 
@@ -26,7 +21,10 @@ class Executor:
         self.graph = target.GRAPH
         self.entrypoint = target.ENTRYPOINT
         self.tables = target.TABLES
-        self.none_probabilities = target.NONE_PROBABILITIES
+
+        self.none_probabilities = {}
+        if hasattr(target, 'NONE_PROBABILITIES'):
+            self.none_probabilities = target.NONE_PROBABILITIES
 
     def _generate_sequence(self):
         assert isinstance(self.entrypoint, Dependency)
