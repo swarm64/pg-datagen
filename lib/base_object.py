@@ -5,7 +5,7 @@ from mimesis.schema import Schema
 
 
 Column = namedtuple('Column', ['name', 'rng', 'type'])
-
+Dependency = namedtuple('Dependency', ['name', 'scaler'])
 
 class BaseObject:
     TABLE_NAME = None
@@ -28,6 +28,13 @@ class BaseObject:
         pass
 
     @classmethod
+    def schema_from_source(cls, rand_gen, source):
+        return (lambda: OrderedDict([(
+                column_name, getattr(rand_gen, column_gen.gen)(*column_gen.args)
+            ) for column_name, column_gen in source.items()])
+        )
+
+    @classmethod
     def run_sampling(cls, schema, num_rows):
         objects = Schema(schema).create(iterations=num_rows)
         return [cls(raw) for raw in objects]
@@ -38,6 +45,11 @@ class BaseObject:
         return {
             cls.TABLE_NAME: cls.run_sampling(schema, num_rows)
         }
+
+    @classmethod
+    def sample_from_source(cls, rand_gen, num_rows, source):
+        schema = cls.schema_from_source(rand_gen, source)
+        return cls.run_sampling(schema, num_rows)
 
     def to_sql(self):
         def to_str(value):

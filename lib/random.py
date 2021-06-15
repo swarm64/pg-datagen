@@ -161,3 +161,32 @@ class Random:
     def string(self, length):
         """Generate a random string of length between min & max chars."""
         return mimesis_random.random.randstr(length=length)
+
+    def varchar(self, max_chars=255):
+        length = self.whole_number(1, max_chars)
+        return self.string(length)
+
+    def text(self):
+        return self.random_text(5, 100)
+
+    def int2(self):
+        return self.whole_number(-32768, 32767)
+
+    def int4(self):
+        return self.whole_number(-2147483648, 2147483646)
+
+    def int8(self):
+        return self.whole_number(-9223372036854775808, 9223372036854775806)
+
+    def timestamp(self):
+        return self.mimesis('datetime')
+
+    def date(self):
+        return self.mimesis('date')
+
+    def numeric(self, precision, scale):
+        # Note: do precision correctly
+        return self.fraction(-1000, 1000, scale)
+
+    def bpchar(self, length):
+        return self.string(length)
