@@ -13,7 +13,6 @@ Column = namedtuple('Column', ['name', 'rng', 'type'])
 class Table:
     schema_path: str
     scaler: float
-    none_prob: float
     schema: OrderedDict = field(init=False)
 
     def __post_init__(self):
@@ -42,6 +41,10 @@ class BaseObject:
 
     @classmethod
     def _generate_column(cls, rand_gen, column_gen, data_store):
+        if column_gen.none_prob:
+            if rand_gen.bool_sample(column_gen.none_prob):
+                return None
+
         if column_gen.gen.startswith('choose_from_list'):
             data_path = column_gen.gen.split(' ')[1]
             data = data_store[data_path]

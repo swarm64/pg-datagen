@@ -42,7 +42,7 @@ class Executor:
                 db.truncate_table(table_name)
 
     def _get_batches(self) -> List[Tuple[int, int]]:
-        total_rows = self.args.total_rows
+        total_rows = self.args.rows
         batch_size = self.args.batch_size
         batch_sizes = [min(x + batch_size, total_rows) - x
                        for x in range(0, total_rows, batch_size)]
@@ -60,7 +60,6 @@ class Executor:
                 data_store[data_path].append(row.get(column))
 
     def _run_helper(self, sequence: list, keep_data: dict, seed: int, num_rows: int) -> bool:
-        logger.info(f'Generating {num_rows} rows with seed {seed}.')
 
         data_store = { }
         with DB(self.args.dsn) as dbconn:
@@ -68,6 +67,9 @@ class Executor:
             for table_name in sequence:
                 table = self.tables[table_name]
                 rows_to_gen = max(1, math.ceil(num_rows * table.scaler))
+
+                logger.info(f'Generating {rows_to_gen} rows (seed {seed}) for table { table_name }')
+
                 data = BaseObject.sample_from_source(rand_gen, rows_to_gen, table.schema, data_store)
                 dbconn.ingest_table(table_name, table.schema, data)
 
@@ -95,6 +97,9 @@ class Executor:
 
         if self.args.truncate:
             self._truncate_tables()
+
+        # for batch_id, batch_size in batches:
+        #     self._run_helper(sequence, keep_data, batch_id, batch_size)
 
         with ProcessPoolExecutor(self.args.max_parallel_workers) as executor:
             all_futures = []

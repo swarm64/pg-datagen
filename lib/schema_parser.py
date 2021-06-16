@@ -16,6 +16,7 @@ class Column:
     gen: str
     not_null: bool
     args: list
+    none_prob: float
 
 
 class Schema:
@@ -29,12 +30,17 @@ class Schema:
         column_location_start = column['location']
         column_location_end = self.raw_schema.find('\n', column_location_start)
         column_gen = None
+        column_none_prob = None
+
         raw = self.raw_schema[column_location_start:column_location_end]
         comment = COMMENT_RE.search(raw)
         if comment:
             comment = comment.groups()[0]
             if comment.find('gen:') >= 0:
                 column_gen = comment.split('gen:')[1].strip()
+
+            if comment.find('none_prob:') >= 0:
+                column_none_prob = float(comment.split('none_prob:')[1].strip())
 
         # The column generator might have been set from a comment
         # directly, thus do not overwrite
@@ -60,7 +66,7 @@ class Schema:
                     # Skip this column, will be generated automatically
                     column_gen = 'skip'
 
-        return column_gen
+        return column_gen, column_none_prob
 
     @classmethod
     def _get_column_gen_args(cls, column_gen, column):
@@ -92,7 +98,7 @@ class Schema:
                 for column in create_stmt['tableElts']:
                     column = column['ColumnDef']
                     column_name = column['colname']
-                    column_gen = self._get_column_gen(column)
+                    column_gen, column_none_prob = self._get_column_gen(column)
                     column_gen_args = Schema._get_column_gen_args(column_gen, column)
 
                     constraints = column.get('constraints', [])
@@ -102,7 +108,8 @@ class Schema:
                             not_null = True
 
                     assert column_gen, f'Column generator empty, column: {column}'
-                    column = Column(column_gen, not_null, column_gen_args)
+                    column = Column(column_gen, not_null, column_gen_args,
+                                    column_none_prob)
                     columns[column_name] = column
 
             alter_table_stmt = stmt.get('stmt', {}).get('AlterTableStmt', {})
