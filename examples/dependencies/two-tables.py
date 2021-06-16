@@ -1,17 +1,17 @@
 
-from lib.base_object import Dependency
+from lib.base_object import Table
 
 
 TABLES = {
-    'public.a': 'examples/dependencies/a.sql',
-    'public.b': 'examples/dependencies/b.sql'
+    'public.a': Table(schema_path='examples/dependencies/a.sql', scaler=1, none_prob=0),
+    'public.b': Table(schema_path='examples/dependencies/b.sql', scaler=10, none_prob= 0)
 }
 
 GRAPH = {
     'public.a': [
-        Dependency(name='public.b', scaler=0.1)
+        'public.b'
     ],
     'public.b': []
 }
 
-ENTRYPOINT = Dependency('public.a', 1)
+ENTRYPOINT = 'public.a'

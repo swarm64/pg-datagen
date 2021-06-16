@@ -6,8 +6,7 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 from importlib.machinery import SourceFileLoader
 from typing import List, Tuple
 
-from lib.base_object import BaseObject, Dependency
-from lib.schema_parser import Schema
+from lib.base_object import BaseObject
 from lib.db import DB
 from lib.random import Random
 
@@ -21,27 +20,16 @@ class Executor:
         target = SourceFileLoader('target', args.target).load_module()
         self.graph = target.GRAPH
         self.entrypoint = target.ENTRYPOINT
-        self.schemas = {
-            table_name: Schema(schema_path).parse_create_table() for
-            table_name, schema_path in target.TABLES.items()
-        }
-
-        self.none_probabilities = {}
-        if hasattr(target, 'NONE_PROBABILITIES'):
-            self.none_probabilities = target.NONE_PROBABILITIES
+        self.tables = target.TABLES
 
     def _generate_sequence(self):
-        assert isinstance(self.entrypoint, Dependency)
-
         sequence = [self.entrypoint]
         queue = [self.entrypoint]
 
         while queue:
             item = queue.pop(0)
-            assert isinstance(item, Dependency)
-
-            for next_item in self.graph[item.name]:
-                if next_item.name not in sequence:
+            for next_item in self.graph[item]:
+                if next_item not in sequence:
                     sequence.append(next_item)
                     queue.append(next_item)
 
@@ -50,7 +38,7 @@ class Executor:
     def _truncate_tables(self) -> None:
         logger.info('Truncating tables.')
         with DB(self.args.dsn) as db:
-            for table_name in self.schemas:
+            for table_name in self.tables:
                 db.truncate_table(table_name)
 
     def _get_batches(self) -> List[Tuple[int, int]]:
@@ -71,19 +59,17 @@ class Executor:
 
                 data_store[data_path].append(row.get(column))
 
-
     def _run_helper(self, sequence: list, keep_data: dict, seed: int, num_rows: int) -> bool:
         logger.info(f'Generating {num_rows} rows with seed {seed}.')
 
         data_store = { }
         with DB(self.args.dsn) as dbconn:
             rand_gen = Random(seed=seed)
-            for dependency in sequence:
-                table_name = dependency.name
-                schema = self.schemas[table_name]
-                rows_to_gen = max(1, math.ceil(num_rows * dependency.scaler))
-                data = BaseObject.sample_from_source(rand_gen, rows_to_gen, schema, data_store)
-                dbconn.ingest_table(table_name, schema, data)
+            for table_name in sequence:
+                table = self.tables[table_name]
+                rows_to_gen = max(1, math.ceil(num_rows * table.scaler))
+                data = BaseObject.sample_from_source(rand_gen, rows_to_gen, table.schema, data_store)
+                dbconn.ingest_table(table_name, table.schema, data)
 
                 columns = keep_data.get(table_name, [])
                 if columns:
@@ -92,7 +78,7 @@ class Executor:
     def _determine_data_to_keep(self, sequence: list) -> dict:
         keep_data = {}
         for item in sequence:
-            for column_name, column_gen in self.schemas[item.name].items():
+            for column_name, column_gen in self.tables[item].schema.items():
                 if column_gen.gen.startswith('choose_from_list'):
                     table, _, column = column_gen.gen.split(' ')[1].rpartition('.')
                     if table not in keep_data:
@@ -101,7 +87,6 @@ class Executor:
                     keep_data[table].append(column)
 
         return keep_data
-
 
     def run(self):
         batches = self._get_batches()

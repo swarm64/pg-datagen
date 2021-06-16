@@ -1,11 +1,24 @@
 
 from collections import OrderedDict, namedtuple
+from dataclasses import dataclass, field
 
 from mimesis.schema import Schema
 
+import lib.schema_parser as schema_parser
+
 
 Column = namedtuple('Column', ['name', 'rng', 'type'])
-Dependency = namedtuple('Dependency', ['name', 'scaler'])
+
+@dataclass
+class Table:
+    schema_path: str
+    scaler: float
+    none_prob: float
+    schema: OrderedDict = field(init=False)
+
+    def __post_init__(self):
+        self.schema = schema_parser.Schema(self.schema_path).parse_create_table()
+
 
 class BaseObject:
     TABLE_NAME = None
