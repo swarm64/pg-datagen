@@ -111,18 +111,16 @@ class Executor:
         if self.args.truncate:
             self._truncate_tables()
 
-        for batch_id, batch_size in batches:
-            self._run_helper(sequence, keep_data, batch_id, batch_size)
-        # with ProcessPoolExecutor(self.args.max_parallel_workers) as executor:
-        #     all_futures = []
-        #     for batch_id, batch_size in batches:
-        #         future = executor.submit(
-        #             self._run_helper, sequence, keep_data, batch_id, batch_size)
-        #         all_futures.append(future)
+        with ProcessPoolExecutor(self.args.max_parallel_workers) as executor:
+            all_futures = []
+            for batch_id, batch_size in batches:
+                future = executor.submit(
+                    self._run_helper, sequence, keep_data, batch_id, batch_size)
+                all_futures.append(future)
 
-        #     for future in as_completed(all_futures):
-        #         try:
-        #             future.result()
-        #         except Exception as exc:
-        #             logger.exception(exc)
-        #             sys.exit(1)
+            for future in as_completed(all_futures):
+                try:
+                    future.result()
+                except Exception as exc:
+                    logger.exception(exc)
+                    sys.exit(1)
