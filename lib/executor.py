@@ -61,6 +61,17 @@ class Executor:
 
         return [(idx + 1, batch_size) for idx, batch_size in enumerate(batch_sizes)]
 
+    @classmethod
+    def _update_data_store(cls, table_name: str, data_store: dict, data: list, columns: list):
+        for row in data:
+            for column in columns:
+                data_path = f'{ table_name }.{ column }'
+                if data_path not in data_store:
+                    data_store[data_path] = []
+
+                data_store[data_path].append(row.get(column))
+
+
     def _run_helper(self, sequence: list, keep_data: dict, seed: int, num_rows: int) -> bool:
         logger.info(f'Generating {num_rows} rows with seed {seed}.')
 
@@ -76,13 +87,7 @@ class Executor:
 
                 columns = keep_data.get(table_name, [])
                 if columns:
-                    for row in data:
-                        for column in columns:
-                            data_path = f'{ table_name }.{ column }'
-                            if data_path not in data_store:
-                                data_store[data_path] = []
-
-                            data_store[data_path].append(row.get(column))
+                    Executor._update_data_store(table_name, data_store, data, columns)
 
     def _determine_data_to_keep(self, sequence: list) -> dict:
         keep_data = {}
