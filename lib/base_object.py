@@ -28,12 +28,21 @@ class BaseObject:
         pass
 
     @classmethod
-    def schema_from_source(cls, rand_gen, source):
-        return (lambda: OrderedDict([(
-                column_name, getattr(rand_gen, column_gen.gen)(*column_gen.args)
-            ) for column_name, column_gen in source.items()
-            if column_gen.gen != 'skip'])
-        )
+    def _generate_column(cls, rand_gen, column_gen, data_store):
+        if column_gen.gen.startswith('choose_from_list'):
+            data_path = column_gen.gen.split(' ')[1]
+            data = data_store[data_path]
+            return rand_gen.choose_from_list(data)
+
+        return getattr(rand_gen, column_gen.gen)(*column_gen.args)
+
+    @classmethod
+    def schema_from_source(cls, rand_gen, source, data_store):
+        return lambda: OrderedDict([
+            (column_name, cls._generate_column(rand_gen, column_gen, data_store))
+            for column_name, column_gen in source.items()
+            if column_gen.gen != 'skip'
+        ])
 
     @classmethod
     def run_sampling(cls, schema, num_rows):
@@ -48,8 +57,8 @@ class BaseObject:
         }
 
     @classmethod
-    def sample_from_source(cls, rand_gen, num_rows, source) -> list:
-        schema = cls.schema_from_source(rand_gen, source)
+    def sample_from_source(cls, rand_gen, num_rows, source, data_store) -> list:
+        schema = cls.schema_from_source(rand_gen, source, data_store)
         return cls.run_sampling(schema, num_rows)
 
     def to_sql(self):

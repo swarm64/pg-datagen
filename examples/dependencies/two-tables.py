@@ -3,8 +3,8 @@ from lib.base_object import Dependency
 
 
 TABLES = {
-    'public.a': 'examples/simple/a.sql',
-    'public.b': 'examples/simple/b.sql'
+    'public.a': 'examples/dependencies/a.sql',
+    'public.b': 'examples/dependencies/b.sql'
 }
 
 GRAPH = {
