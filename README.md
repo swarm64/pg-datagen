@@ -6,8 +6,8 @@ data according to it.
 # Brief Usage
 
 1. Install deps: `pip3 install -r requirements.txt`
-2. Check out how `examples/two-tables.py` is built
-3. Create a database and load `examples/{a,b}.sql`
+2. Check out how `examples/simple/two-tables.py` is built
+3. Create a database and load `examples/simple/{a,b}.sql`
 4. Run the generator, e.g.
 
     ```bash
@@ -16,5 +16,5 @@ data according to it.
       --batch-size 100 \
       --total-rows 1000 \
       --truncate \
-      --target examples/two-tables.py
+      --target examples/simple/two-tables.py
     ```

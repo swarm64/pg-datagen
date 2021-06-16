@@ -7,6 +7,7 @@ from importlib.machinery import SourceFileLoader
 from typing import List, Tuple
 
 from lib.base_object import BaseObject, Dependency
+from lib.schema_parser import Schema
 from lib.db import DB
 from lib.random import Random
 
@@ -20,7 +21,10 @@ class Executor:
         target = SourceFileLoader('target', args.target).load_module()
         self.graph = target.GRAPH
         self.entrypoint = target.ENTRYPOINT
-        self.tables = target.TABLES
+        self.schemas = {
+            table_name: Schema(schema_path).parse_create_table() for
+            table_name, schema_path in target.TABLES.items()
+        }
 
         self.none_probabilities = {}
         if hasattr(target, 'NONE_PROBABILITIES'):
@@ -46,7 +50,7 @@ class Executor:
     def _truncate_tables(self) -> None:
         logger.info('Truncating tables.')
         with DB(self.args.dsn) as db:
-            for table_name in self.tables:
+            for table_name in self.schemas:
                 db.truncate_table(table_name)
 
     def _get_batches(self) -> List[Tuple[int, int]]:
@@ -64,7 +68,7 @@ class Executor:
             rand_gen = Random(seed=seed)
             for dependency in sequence:
                 table_name = dependency.name
-                schema = self.tables[table_name]
+                schema = self.schemas[table_name]
                 rows_to_gen = max(1, math.ceil(num_rows * dependency.scaler))
                 data = BaseObject.sample_from_source(rand_gen, rows_to_gen, schema)
                 dbconn.ingest_table(table_name, schema, data)

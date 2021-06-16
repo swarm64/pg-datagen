@@ -1,11 +1,10 @@
 
-from lib.schema_parser import Schema
 from lib.base_object import Dependency
 
 
 TABLES = {
-    'a': Schema('examples/a.sql').parse_create_table(),
-    'b': Schema('examples/b.sql').parse_create_table()
+    'a': 'examples/simple/a.sql',
+    'b': 'examples/simple/b.sql'
 }
 
 GRAPH = {
