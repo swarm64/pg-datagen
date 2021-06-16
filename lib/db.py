@@ -35,11 +35,14 @@ class DB:
         data.seek(0)
         return data
 
-    def ingest_table(self, table, objs):
+    def ingest_table(self, table: str, schema: dict, objs: list):
         logger.info(f'Ingesting { table }: { len(objs) }')
 
+        columns = ','.join(
+            [name for name, column in schema.items() if column.gen != 'skip'])
+
         self.cur.copy_expert(f'''
-            COPY { table }
+            COPY { table }({ columns })
             FROM STDIN
             WITH(FORMAT CSV, DELIMITER '|')''', DB._objs_to_csv(objs))
 

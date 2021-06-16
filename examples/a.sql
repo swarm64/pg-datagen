@@ -1,5 +1,5 @@
 create table a(
-  id int,
+  id serial,
   value text
 );
 

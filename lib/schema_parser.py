@@ -33,7 +33,6 @@ class Schema:
         comment = COMMENT_RE.search(raw)
         if comment:
             comment = comment.groups()[0]
-            print(comment)
             if comment.find('gen:') >= 0:
                 column_gen = comment.split('gen:')[1].strip()
 
@@ -53,8 +52,13 @@ class Schema:
 
                 if column_gen not in (
                     'varchar', 'text', 'int2', 'int4', 'int8',
-                    'timestamp', 'date', 'numeric', 'bpchar'):
+                    'timestamp', 'date', 'numeric', 'bpchar', 'serial',
+                    'bigserial'):
                     raise ValueError(f'Unsupported column generator: {column_gen}')
+
+                if column_gen in ('serial', 'bigserial'):
+                    # Skip this column, will be generated automatically
+                    column_gen = 'skip'
 
         return column_gen
 

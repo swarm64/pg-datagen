@@ -67,7 +67,7 @@ class Executor:
                 schema = self.tables[table_name]
                 rows_to_gen = max(1, math.ceil(num_rows * dependency.scaler))
                 data = BaseObject.sample_from_source(rand_gen, rows_to_gen, schema)
-                dbconn.ingest_table(table_name, data)
+                dbconn.ingest_table(table_name, schema, data)
 
     def run(self):
         batches = self._get_batches()

@@ -31,7 +31,8 @@ class BaseObject:
     def schema_from_source(cls, rand_gen, source):
         return (lambda: OrderedDict([(
                 column_name, getattr(rand_gen, column_gen.gen)(*column_gen.args)
-            ) for column_name, column_gen in source.items()])
+            ) for column_name, column_gen in source.items()
+            if column_gen.gen != 'skip'])
         )
 
     @classmethod
@@ -47,7 +48,7 @@ class BaseObject:
         }
 
     @classmethod
-    def sample_from_source(cls, rand_gen, num_rows, source):
+    def sample_from_source(cls, rand_gen, num_rows, source) -> list:
         schema = cls.schema_from_source(rand_gen, source)
         return cls.run_sampling(schema, num_rows)
 
