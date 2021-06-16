@@ -39,7 +39,7 @@ class DB:
         logger.info(f'Ingesting { table }: { len(objs) }')
 
         columns = ','.join(
-            [name for name, column in schema.items() if column.gen != 'skip'])
+            [f'"{ name }"' for name, column in schema.items() if column.gen != 'skip'])
 
         self.cur.copy_expert(f'''
             COPY { table }({ columns })
