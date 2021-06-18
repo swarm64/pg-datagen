@@ -59,14 +59,33 @@ class Executor:
 
                 data_store[data_path].append(row.get(column))
 
-    def _run_helper(self, sequence: list, keep_data: dict, seed: int, num_rows: int) -> bool:
+    @classmethod
+    def _get_num_rows_to_gen(cls, rand_gen, num_rows, scaler) -> int:
+        if isinstance(scaler, tuple):
+            attr = scaler[0]
+            args = scaler[1:]
+            rows_to_gen = num_rows * getattr(rand_gen, attr)(*args)
 
+        elif callable(scaler):
+            rows_to_gen = scaler(rand_gen, num_rows)
+
+        elif isinstance(scaler, (int, float)):
+            rows_to_gen = num_rows * scaler
+
+        else:
+            raise AttributeError(f'Unknown scaler type: { type(scaler) }')
+
+        return max(1, math.ceil(rows_to_gen))
+
+    def _run_helper(self, sequence: list, keep_data: dict, seed: int, num_rows: int) -> bool:
         data_store = { }
         with DB(self.args.dsn) as dbconn:
             rand_gen = Random(seed=seed)
             for table_name in sequence:
                 table = self.tables[table_name]
-                rows_to_gen = max(1, math.ceil(num_rows * table.scaler))
+
+                rows_to_gen = Executor._get_num_rows_to_gen(
+                    rand_gen, num_rows, table.scaler)
 
                 logger.info(f'Generating {rows_to_gen} rows (seed {seed}) for table { table_name }')
 
