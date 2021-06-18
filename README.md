@@ -1,8 +1,14 @@
 # PgPyRDG - PostgreSQL DDL-driven Python Random Data Generator
 
-> Better names welcome 😊
 
-The aim of this tool is to provide a random data generator for each table in
+| ⚠️ PgPyRDG is currently very much alpha, any definition may change. Consider it having a non-stable interface. |
+| --- |
+
+
+ℹ️ Name suggestions welcome 😊
+
+
+The purpose of this tool is to provide a random data generator for each table in
 an (annotated) PostgreSQL schema. For example, when loading the schema:
 
 ```sql
