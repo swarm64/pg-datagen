@@ -1,7 +1,8 @@
-# PgPyRDG - PostgreSQL DDL-driven Python Random Data Generator
+# PgDg - PostgreSQL Data Generator
 
+A schema-driven Python random data generator for PostgreSQL.
 
-| ⚠️ PgPyRDG is currently very much alpha, any definition may change. Consider it having a non-stable interface. |
+| ⚠️  PgDg is currently very much alpha, any definition may change. Consider it having a non-stable interface. |
 | --- |
 
 
