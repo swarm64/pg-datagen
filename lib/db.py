@@ -49,3 +49,7 @@ class DB:
     def truncate_table(self, table):
         logger.info(f'Truncating { table }')
         self.cur.execute(f'TRUNCATE { table } CASCADE')
+
+    def vacuum_analyze_table(self, table):
+        logger.info(f'Running VACUUM-ANALYZE on { table }')
+        self.cur.execute(f'VACUUM ANALYZE { table }')

@@ -19,6 +19,8 @@ if __name__ == '__main__':
         'Whether to truncate tables before data generation.'))
     args_to_parse.add_argument('--dry-run', action='store_true', default=False, help=(
         'Whether to do a dry run or not'))
+    args_to_parse.add_argument('--vacuum-analyze', action='store_true', default=False, help=(
+        'Run a VACUUM-ANALYZE after ingestion.'))
     args_to_parse.add_argument('--target', required=True, help=(
         'The Python file containing defintions for random data generation'))
     args = args_to_parse.parse_args()

@@ -35,11 +35,14 @@ class Executor:
 
         return sequence
 
-    def _truncate_tables(self) -> None:
+    def _truncate_table(self, table_name: str) -> None:
         logger.info('Truncating tables.')
         with DB(self.args.dsn) as db:
-            for table_name in self.tables:
-                db.truncate_table(table_name)
+            db.truncate_table(table_name)
+
+    def _vacuum_analyze(self, table) -> None:
+        with DB(self.args.dsn) as db:
+            db.vacuum_analyze_table(table)
 
     def _get_batches(self) -> List[Tuple[int, int]]:
         total_rows = self.args.rows
@@ -99,7 +102,7 @@ class Executor:
     def _determine_data_to_keep(self, sequence: list) -> dict:
         keep_data = {}
         for item in sequence:
-            for column_name, column_gen in self.tables[item].schema.items():
+            for column_gen in self.tables[item].schema.values():
                 if column_gen.gen.startswith('choose_from_list'):
                     table, _, column = column_gen.gen.split(' ')[1].rpartition('.')
                     if table not in keep_data:
@@ -109,27 +112,35 @@ class Executor:
 
         return keep_data
 
+    @classmethod
+    def _execute_in_parallel(cls, executor, tasks):
+        all_futures = []
+        for task, args in tasks:
+            all_futures.append(executor.submit(task, *args))
+
+        for future in as_completed(all_futures):
+            try:
+                future.result()
+            except Exception as exc:
+                logger.exception(exc)
+                sys.exit(1)
+
     def run(self):
         batches = self._get_batches()
         sequence = self._generate_sequence()
         keep_data = self._determine_data_to_keep(sequence)
 
-        if self.args.truncate:
-            self._truncate_tables()
-
-        # for batch_id, batch_size in batches:
-        #     self._run_helper(sequence, keep_data, batch_id, batch_size)
-
         with ProcessPoolExecutor(self.args.max_parallel_workers) as executor:
-            all_futures = []
-            for batch_id, batch_size in batches:
-                future = executor.submit(
-                    self._run_helper, sequence, keep_data, batch_id, batch_size)
-                all_futures.append(future)
+            if self.args.truncate:
+                tasks = [(self._truncate_table, (table,)) for table in sequence]
+                Executor._execute_in_parallel(executor, tasks)
 
-            for future in as_completed(all_futures):
-                try:
-                    future.result()
-                except Exception as exc:
-                    logger.exception(exc)
-                    sys.exit(1)
+            tasks = []
+            for batch_id, batch_size in batches:
+                task = (self._run_helper, (sequence, keep_data, batch_id, batch_size))
+                tasks.append(task)
+            Executor._execute_in_parallel(executor, tasks)
+
+            if self.args.vacuum_analyze:
+                tasks = [(self._vacuum_analyze, (table,)) for table in sequence]
+                Executor._execute_in_parallel(executor, tasks)
