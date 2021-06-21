@@ -40,7 +40,7 @@ and `value` in table `a`. Dependencies between tables are supported as well (see
 
 ## Example Usage
 
-We'll be using (./examples/simple)[./examples/simple] for
+We'll be using [./examples/simple](./examples/simple) for
 a demonstration:
 
 1. Create a database and load `examples/simple/{a,b}.sql`
@@ -108,7 +108,7 @@ CREATE TABLE a(
 | Annotation | Description |
 | ---------- | ----------- |
 | none_prob: <0.0..1.0> | Sets probability of generating a `NULL` value (if allowed) |
-| gen: <method name> | Hardcodes the generator to use. Methods in (./lib/random.py)[./lib/random.py] are supported (not all!). For example: `-- gen: md5` would use the `md5` method. There is a special generator `choose_from_list` to inject dependencies (see below). |
+| gen: <method name> | Hardcodes the generator to use. Methods in [./lib/random.py](./lib/random.py) are supported (not all!). For example: `-- gen: md5` would use the `md5` method. There is a special generator `choose_from_list` to inject dependencies (see below). |
     
 ### Inject Dependencies
 
