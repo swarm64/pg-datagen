@@ -130,7 +130,7 @@ CREATE TABLE b(
 ```
 
 Then, the data generator will take random values from `a` and use them for
-the `id_a` column of table `b`. Please not to always supply a complete "path",
+the `id_a` column of table `b`. Always supply a complete "path",
 that is, the path must be of format: `<schema>.<table>.<column>`. Use `public`
 as `<schema>` if you do not use custom schemas.
 
