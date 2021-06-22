@@ -181,6 +181,9 @@ class Random:
     def timestamp(self):
         return self.mimesis('datetime')
 
+    def timestamptz(self):
+        return self.timestamp()
+
     def date(self):
         return self.mimesis('date')
 

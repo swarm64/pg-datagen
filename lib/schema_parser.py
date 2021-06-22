@@ -58,8 +58,8 @@ class Schema:
 
                 if column_gen not in (
                     'varchar', 'text', 'int2', 'int4', 'int8',
-                    'timestamp', 'date', 'numeric', 'bpchar', 'serial',
-                    'bigserial'):
+                    'timestamp', 'timestamptz', 'date', 'numeric', 'bpchar',
+                    'serial', 'bigserial'):
                     raise ValueError(f'Unsupported column generator: {column_gen}')
 
                 if column_gen in ('serial', 'bigserial'):
