@@ -1,10 +1,13 @@
+"""
+This module controls execution of the random data generator.
+"""
 
 import math
 import sys
 
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from importlib.machinery import SourceFileLoader
-from typing import List, Tuple
+from typing import Any, Callable, Dict, Mapping, List, Sequence, Tuple, Type, Union
 
 from lib.base_object import BaseObject
 from lib.db import DB
@@ -22,7 +25,8 @@ class Executor:
         self.entrypoint = target.ENTRYPOINT
         self.tables = target.TABLES
 
-    def _generate_sequence(self):
+    def _generate_sequence(self) -> List[str]:
+        """Traverse the graph in BFS manner creating a linear execution order."""
         sequence = [self.entrypoint]
         queue = [self.entrypoint]
 
@@ -35,16 +39,19 @@ class Executor:
 
         return sequence
 
-    def _truncate_table(self, table_name: str) -> None:
+    def truncate_table(self, table_name: str) -> None:
+        """Helper function to truncate a table by name."""
         logger.info('Truncating tables.')
         with DB(self.args.dsn) as db:
             db.truncate_table(table_name)
 
-    def _vacuum_analyze(self, table) -> None:
+    def vacuum_analyze(self, table) -> None:
+        """Helper function to run VACUUM-ANALYZE on a table."""
         with DB(self.args.dsn) as db:
             db.vacuum_analyze_table(table)
 
     def _get_batches(self) -> List[Tuple[int, int]]:
+        """Calculate batches based on runtime arguments."""
         total_rows = self.args.rows
         batch_size = self.args.batch_size
         batch_sizes = [min(x + batch_size, total_rows) - x
@@ -53,7 +60,9 @@ class Executor:
         return [(idx + 1, batch_size) for idx, batch_size in enumerate(batch_sizes)]
 
     @classmethod
-    def _update_data_store(cls, table_name: str, data_store: dict, data: list, columns: list):
+    def _update_data_store(cls, table_name: str, data_store: Mapping[str, Sequence],
+                           data: Sequence, columns: Sequence[str]):
+        """Helper function to update the dependency data store for a tables column."""
         for row in data:
             for column in columns:
                 data_path = f'{ table_name }.{ column }'
@@ -62,8 +71,25 @@ class Executor:
 
                 data_store[data_path].append(row.get(column))
 
+    def _determine_data_to_keep(self, sequence: Sequence[str]) -> Dict[str, Sequence[str]]:
+        """Parse the sequence and determine dependencies to control the data store."""
+        keep_data = {}
+        for item in sequence:
+            for column_gen in self.tables[item].schema.values():
+                if column_gen.gen.startswith('choose_from_list'):
+                    table, _, column = column_gen.gen.split(' ')[1].rpartition('.')
+                    if table not in keep_data:
+                        keep_data[table] = []
+
+                    keep_data[table].append(column)
+
+        return keep_data
+
     @classmethod
-    def _get_num_rows_to_gen(cls, rand_gen, num_rows, scaler) -> int:
+    def _get_num_rows_to_gen(cls, rand_gen: Type[Random], num_rows: int,
+                             scaler: Union[Tuple, int, float,
+                                     Callable[[Type[Random], int], None]]) -> int:
+        """Helper function to determine how many rows shall be generated."""
         if isinstance(scaler, tuple):
             attr = scaler[0]
             args = scaler[1:]
@@ -80,7 +106,9 @@ class Executor:
 
         return max(1, math.ceil(rows_to_gen))
 
-    def _run_helper(self, sequence: list, keep_data: dict, seed: int, num_rows: int) -> bool:
+    def _run_helper(self, sequence: Sequence[str],
+                    keep_data: Mapping[str, Sequence[str]], seed: int,
+                    num_rows: int) -> None:
         data_store = { }
         with DB(self.args.dsn) as dbconn:
             rand_gen = Random(seed=seed)
@@ -99,21 +127,10 @@ class Executor:
                 if columns:
                     Executor._update_data_store(table_name, data_store, data, columns)
 
-    def _determine_data_to_keep(self, sequence: list) -> dict:
-        keep_data = {}
-        for item in sequence:
-            for column_gen in self.tables[item].schema.values():
-                if column_gen.gen.startswith('choose_from_list'):
-                    table, _, column = column_gen.gen.split(' ')[1].rpartition('.')
-                    if table not in keep_data:
-                        keep_data[table] = []
-
-                    keep_data[table].append(column)
-
-        return keep_data
-
     @classmethod
-    def _execute_in_parallel(cls, executor, tasks):
+    def _execute_in_parallel(cls, executor: Type[ProcessPoolExecutor],
+                             tasks: Tuple[Callable[[Any], None], Tuple[Any, ...]]):
+        """Run set of tasks in parallel using the provided executor."""
         all_futures = []
         for task, args in tasks:
             all_futures.append(executor.submit(task, *args))
@@ -126,13 +143,14 @@ class Executor:
                 sys.exit(1)
 
     def run(self):
+        """Main entrypoint to start the random data generator."""
         batches = self._get_batches()
         sequence = self._generate_sequence()
         keep_data = self._determine_data_to_keep(sequence)
 
         with ProcessPoolExecutor(self.args.max_parallel_workers) as executor:
             if self.args.truncate:
-                tasks = [(self._truncate_table, (table,)) for table in sequence]
+                tasks = [(self.truncate_table, (table,)) for table in sequence]
                 Executor._execute_in_parallel(executor, tasks)
 
             tasks = []
@@ -142,5 +160,5 @@ class Executor:
             Executor._execute_in_parallel(executor, tasks)
 
             if self.args.vacuum_analyze:
-                tasks = [(self._vacuum_analyze, (table,)) for table in sequence]
+                tasks = [(self.vacuum_analyze, (table,)) for table in sequence]
                 Executor._execute_in_parallel(executor, tasks)
