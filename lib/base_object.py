@@ -40,22 +40,21 @@ class BaseObject:
         pass
 
     @classmethod
-    def _generate_column(cls, rand_gen, column_gen, data_store):
+    def _generate_column(cls, rand_gen, column_gen, cache):
         if column_gen.none_prob:
             if rand_gen.bool_sample(column_gen.none_prob):
                 return None
 
         if column_gen.gen.startswith('choose_from_list'):
             data_path = column_gen.gen.split(' ')[1]
-            data = data_store[data_path]
-            return rand_gen.choose_from_list(data)
+            return rand_gen.choose_from_list(cache.get_from_cache(data_path))
 
         return getattr(rand_gen, column_gen.gen)(*column_gen.args)
 
     @classmethod
-    def schema_from_source(cls, rand_gen, source, data_store):
+    def schema_from_source(cls, rand_gen, source, cache):
         return lambda: OrderedDict([
-            (column_name, cls._generate_column(rand_gen, column_gen, data_store))
+            (column_name, cls._generate_column(rand_gen, column_gen, cache))
             for column_name, column_gen in source.items()
             if column_gen.gen != 'skip'
         ])
@@ -73,8 +72,8 @@ class BaseObject:
         }
 
     @classmethod
-    def sample_from_source(cls, rand_gen, num_rows, source, data_store) -> list:
-        schema = cls.schema_from_source(rand_gen, source, data_store)
+    def sample_from_source(cls, rand_gen, num_rows, source, cache) -> list:
+        schema = cls.schema_from_source(rand_gen, source, cache)
         return cls.run_sampling(schema, num_rows)
 
     def to_sql(self):

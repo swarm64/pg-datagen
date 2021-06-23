@@ -10,6 +10,7 @@ from importlib.machinery import SourceFileLoader
 from typing import Any, Callable, Dict, Mapping, List, Sequence, Tuple, Type, Union
 
 from lib.base_object import BaseObject
+from lib.cache import Cache
 from lib.db import DB
 from lib.random import Random
 
@@ -60,32 +61,6 @@ class Executor:
         return [(idx + 1, batch_size) for idx, batch_size in enumerate(batch_sizes)]
 
     @classmethod
-    def _update_data_store(cls, table_name: str, data_store: Mapping[str, Sequence],
-                           data: Sequence, columns: Sequence[str]):
-        """Helper function to update the dependency data store for a tables column."""
-        for row in data:
-            for column in columns:
-                data_path = f'{ table_name }.{ column }'
-                if data_path not in data_store:
-                    data_store[data_path] = []
-
-                data_store[data_path].append(row.get(column))
-
-    def _determine_data_to_keep(self, sequence: Sequence[str]) -> Dict[str, Sequence[str]]:
-        """Parse the sequence and determine dependencies to control the data store."""
-        keep_data = {}
-        for item in sequence:
-            for column_gen in self.tables[item].schema.values():
-                if column_gen.gen.startswith('choose_from_list'):
-                    table, _, column = column_gen.gen.split(' ')[1].rpartition('.')
-                    if table not in keep_data:
-                        keep_data[table] = []
-
-                    keep_data[table].append(column)
-
-        return keep_data
-
-    @classmethod
     def _get_num_rows_to_gen(cls, rand_gen: Type[Random], num_rows: int,
                              scaler: Union[Tuple, int, float,
                                      Callable[[Type[Random], int], None]]) -> int:
@@ -106,10 +81,8 @@ class Executor:
 
         return max(1, math.ceil(rows_to_gen))
 
-    def _run_helper(self, sequence: Sequence[str],
-                    keep_data: Mapping[str, Sequence[str]], seed: int,
-                    num_rows: int) -> None:
-        data_store = { }
+    def _run_helper(self, sequence: Sequence[str], cache: Type[Cache],
+                    seed: int, num_rows: int) -> None:
         with DB(self.args.dsn) as dbconn:
             rand_gen = Random(seed=seed)
             for table_name in sequence:
@@ -120,12 +93,9 @@ class Executor:
 
                 logger.info(f'Generating {rows_to_gen} rows (seed {seed}) for table { table_name }')
 
-                data = BaseObject.sample_from_source(rand_gen, rows_to_gen, table.schema, data_store)
+                data = BaseObject.sample_from_source(rand_gen, rows_to_gen, table.schema, cache)
                 dbconn.ingest_table(table_name, table.schema, data)
-
-                columns = keep_data.get(table_name, [])
-                if columns:
-                    Executor._update_data_store(table_name, data_store, data, columns)
+                cache.add_to_cache(table_name, data)
 
     @classmethod
     def _execute_in_parallel(cls, executor: Type[ProcessPoolExecutor],
@@ -146,7 +116,7 @@ class Executor:
         """Main entrypoint to start the random data generator."""
         batches = self._get_batches()
         sequence = self._generate_sequence()
-        keep_data = self._determine_data_to_keep(sequence)
+        cache = Cache(self.tables)
 
         with ProcessPoolExecutor(self.args.max_parallel_workers) as executor:
             if self.args.truncate:
@@ -155,7 +125,7 @@ class Executor:
 
             tasks = []
             for batch_id, batch_size in batches:
-                task = (self._run_helper, (sequence, keep_data, batch_id, batch_size))
+                task = (self._run_helper, (sequence, cache, batch_id, batch_size))
                 tasks.append(task)
             Executor._execute_in_parallel(executor, tasks)
 
