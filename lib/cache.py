@@ -2,45 +2,47 @@
 This module is responsible for caching data of dependencies.
 """
 
-from typing import Any, Mapping, Sequence
+from typing import AbstractSet, Any, Dict, Mapping, List, Sequence, Tuple
 
 from loguru import logger
 
 
 class Cache:
     """Cache to store objects required as dependencies later."""
-    def __init__(self, tables: Mapping[str, object]):
+
+    _cache_map: Dict[str, List[str]]
+    _store: Dict[str, List]
+
+    def __init__(self, cache_map_source: AbstractSet[Tuple[str, str]]):
+        self._cache_map = Cache._build_cache_map(cache_map_source)
+
         self._store = {}
+        self._prepare_cache_store()
 
-        self._cache_map = {}
-        self._determine_data_to_keep(tables)
+    @classmethod
+    def build_path(cls, table: str, column: str) -> str:
+        """Build a path for cache-lookups."""
+        return f'{ table }.{ column }'
 
-    def _determine_data_to_keep(self, tables: Mapping[str, object]) -> None:
-        """Parse all tables locating what needs to be cached."""
-        logger.debug('Determining what to cache')
-        for table in tables.values():
-            for column_gen in table.schema.values():
-                if column_gen.gen.startswith('choose_from_list'):
-                    path = column_gen.gen.split(' ')[1]
-                    table, _, column = path.rpartition('.')
-                    self._add_to_cache_map(table, column)
+    @classmethod
+    def _build_cache_map(cls, source: AbstractSet[Tuple[str, str]]) -> Dict[str, List[str]]:
+        logger.debug('Building cache map')
+        cache_map = {}
+        for table, column in source:
+            logger.debug(f'Adding { table }.{ column } to cache map')
+            if table not in cache_map:
+                cache_map[table] = []
+            cache_map[table].append(column)
 
-    def _add_to_cache_map(self, table: str, column: str) -> None:
-        logger.debug(f'Adding { table }.{ column } to cache map')
-        if table not in self._cache_map:
-            self._cache_map[table] = []
-        self._cache_map[table].append(column)
+        return cache_map
 
-    def _add_to_data_store(self, path: str, datum: Any) -> None:
-        if path not in self._store:
-            self._store[path] = []
-        self._store[path].append(datum)
+    def _prepare_cache_store(self) -> None:
+        for table, columns in self._cache_map.items():
+            for column in columns:
+                path = Cache.build_path(table, column)
+                self._store[path] = []
 
-    def flush(self) -> None:
-        """Flush the cache without removing information what to cache."""
-        self._store.clear()
-
-    def add_to_cache(self, table_name: str, data: Sequence) -> None:
+    def add(self, table_name: str, data: Sequence[Mapping[str, Sequence]]) -> None:
         """Cache all columns that need to be cached."""
         columns = self._cache_map.get(table_name)
         if not columns:
@@ -49,9 +51,9 @@ class Cache:
         logger.debug(f'Caching { table_name } data for columns { columns }.')
         for row in data:
             for column in columns:
-                path = f'{ table_name }.{ column }'
-                self._add_to_data_store(path, row.get(column))
+                path = Cache.build_path(table_name, column)
+                self._store[path].append(row.get(column))
 
-    def get_from_cache(self, path: str) -> Sequence[Any]:
+    def retrieve(self, path: str) -> Sequence[Any]:
         """Retrieve a cached object by its path."""
-        return self._store[path]
+        return self._store.get(path, [])

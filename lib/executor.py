@@ -7,9 +7,9 @@ import sys
 
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from importlib.machinery import SourceFileLoader
-from typing import Any, Callable, Dict, Mapping, List, Sequence, Tuple, Type, Union
+from typing import AbstractSet, Any, Callable, Mapping, List, Sequence, Tuple, Type, Union
 
-from lib.base_object import BaseObject
+from lib.base_object import BaseObject, Table
 from lib.cache import Cache
 from lib.db import DB
 from lib.random import Random
@@ -18,6 +18,10 @@ from loguru import logger
 
 
 class Executor:
+    graph: Mapping[str, Sequence[str]]
+    entrypoint: str
+    tables: Mapping[str, Type[Table]]
+
     def __init__(self, args: object) -> None:
         self.args = args
 
@@ -81,8 +85,11 @@ class Executor:
 
         return max(1, math.ceil(rows_to_gen))
 
-    def _run_helper(self, sequence: Sequence[str], cache: Type[Cache],
-                    seed: int, num_rows: int) -> None:
+    def _run_helper(self, sequence: Sequence[str],
+                    deps: AbstractSet[Tuple[str, str]], seed: int,
+                    num_rows: int) -> None:
+        cache = Cache(deps)
+
         with DB(self.args.dsn) as dbconn:
             rand_gen = Random(seed=seed)
             for table_name in sequence:
@@ -95,7 +102,7 @@ class Executor:
 
                 data = BaseObject.sample_from_source(rand_gen, rows_to_gen, table.schema, cache)
                 dbconn.ingest_table(table_name, table.schema, data)
-                cache.add_to_cache(table_name, data)
+                cache.add(table_name, data)
 
     @classmethod
     def _execute_in_parallel(cls, executor: Type[ProcessPoolExecutor],
@@ -116,7 +123,11 @@ class Executor:
         """Main entrypoint to start the random data generator."""
         batches = self._get_batches()
         sequence = self._generate_sequence()
-        cache = Cache(self.tables)
+
+        all_deps = set()
+        for table in self.tables.values():
+            deps = table.get_column_dependencies()
+            all_deps.update(deps)
 
         with ProcessPoolExecutor(self.args.max_parallel_workers) as executor:
             if self.args.truncate:
@@ -125,7 +136,7 @@ class Executor:
 
             tasks = []
             for batch_id, batch_size in batches:
-                task = (self._run_helper, (sequence, cache, batch_id, batch_size))
+                task = (self._run_helper, (sequence, all_deps, batch_id, batch_size))
                 tasks.append(task)
             Executor._execute_in_parallel(executor, tasks)
 
