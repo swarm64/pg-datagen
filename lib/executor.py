@@ -44,17 +44,6 @@ class Executor:
 
         return sequence
 
-    def truncate_table(self, table_name: str) -> None:
-        """Helper function to truncate a table by name."""
-        logger.info('Truncating tables.')
-        with DB(self.args.dsn) as db:
-            db.truncate_table(table_name)
-
-    def vacuum_analyze(self, table) -> None:
-        """Helper function to run VACUUM-ANALYZE on a table."""
-        with DB(self.args.dsn) as db:
-            db.vacuum_analyze_table(table)
-
     def _get_batches(self) -> List[Tuple[int, int]]:
         """Calculate batches based on runtime arguments."""
         total_rows = self.args.rows
@@ -119,6 +108,17 @@ class Executor:
                 logger.exception(exc)
                 sys.exit(1)
 
+    def _run_db_cmd_on_table(self, cmd: str, table_name: str) -> None:
+        with DB(self.args.dsn) as db:
+            if cmd == 'truncate':
+                db.truncate_table(table_name)
+
+            elif cmd == 'vacuum-analyze':
+                db.vacuum_analyze_table(table_name)
+
+            else:
+                raise ValueError(f'Unknown DB command: { cmd }')
+
     def run(self):
         """Main entrypoint to start the random data generator."""
         batches = self._get_batches()
@@ -131,7 +131,7 @@ class Executor:
 
         with ProcessPoolExecutor(self.args.max_parallel_workers) as executor:
             if self.args.truncate:
-                tasks = [(self.truncate_table, (table,)) for table in sequence]
+                tasks = [(self._run_db_cmd_on_table, ('truncate', table)) for table in sequence]
                 Executor._execute_in_parallel(executor, tasks)
 
             tasks = []
@@ -141,5 +141,5 @@ class Executor:
             Executor._execute_in_parallel(executor, tasks)
 
             if self.args.vacuum_analyze:
-                tasks = [(self.vacuum_analyze, (table,)) for table in sequence]
+                tasks = [(self._run_db_cmd_on_table, ('vacuum-analyze', table)) for table in sequence]
                 Executor._execute_in_parallel(executor, tasks)
