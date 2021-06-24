@@ -2,6 +2,8 @@
 
 A schema-driven Python random data generator for PostgreSQL.
 
+[![Tests](https://github.com/swarm64/pg-datagen/actions/workflows/ci.yml/badge.svg)](https://github.com/swarm64/pg-datagen/actions/workflows/ci.yml)
+
 | ⚠️  PG Datagen is currently very much alpha, any definition may change. Consider it having a non-stable interface. |
 | --- |
 
