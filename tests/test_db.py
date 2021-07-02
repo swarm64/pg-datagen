@@ -30,6 +30,15 @@ def test_ctx_manager(mock_connect):
     db.conn.close.assert_called_once()
 
 
+def test_ctx_manager_exit_no_obj(mock_connect):
+    db = None
+    with DB(DSN) as db:
+        db.conn = None
+        db.cur = None
+
+    assert db
+
+
 def test_objs_to_csv(mock_data_obj):
     retval = DB._objs_to_csv([mock_data_obj, mock_data_obj])
     assert retval.read() == '1,2,3\n1,2,3\n'
