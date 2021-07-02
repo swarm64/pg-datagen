@@ -26,3 +26,19 @@ def test_cache():
 
     b_bla = cache.retrieve('b.bla')
     assert b_bla == []
+
+
+def test_cache_no_columns():
+    items_to_cache = set()
+    cache = Cache(items_to_cache)
+
+    data = [
+        {'bla': 1, 'xyz': 2},
+        {'bla': 3, 'xyz': 4}
+    ]
+
+    # Should not be cached
+    cache.add('a', data)
+
+    a_bla = cache.retrieve('a.bla')
+    assert a_bla == []
