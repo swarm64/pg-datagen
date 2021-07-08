@@ -1,3 +1,6 @@
+"""
+This module contains schema-related type definitions.
+"""
 
 from collections import namedtuple, OrderedDict
 from dataclasses import dataclass, field
@@ -11,6 +14,7 @@ Column = namedtuple('Column', ['name', 'rng', 'type'])
 
 @dataclass
 class Table:
+    """Postgres table abstraction"""
     schema_path: str
     scaler: float
     schema: OrderedDict = field(init=False)
