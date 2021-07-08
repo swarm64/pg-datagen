@@ -1,40 +1,14 @@
 
-from collections import OrderedDict, namedtuple
-from dataclasses import dataclass, field
-from typing import Set, Tuple
+from collections import OrderedDict
+from typing import Any, List, Type
 
 from mimesis.schema import Schema
 
-import lib.schema_parser as schema_parser
+from lib.random import Random
 
-
-Column = namedtuple('Column', ['name', 'rng', 'type'])
-
-@dataclass
-class Table:
-    schema_path: str
-    scaler: float
-    schema: OrderedDict = field(init=False)
-
-    def __post_init__(self):
-        self.schema = schema_parser.Schema(self.schema_path).parse_create_table()
-
-    def get_column_dependencies(self) -> Set[Tuple[str, str]]:
-        """Return a set of (table, column) referenced by 'choose_from_list'"""
-        deps = set()
-        for column_gen in self.schema.values():
-            if column_gen.gen.startswith('choose_from_list'):
-                path = column_gen.gen.split(' ')[1]
-                table, _, column = path.rpartition('.')
-                deps.add((table, column))
-
-        return deps
 
 class BaseObject:
-    TABLE_NAME = None
-    BYPASS = False
-
-    def __init__(self, raw):
+    def __init__(self, raw: Type[OrderedDict]):
         if not isinstance(raw, OrderedDict):
             raise TypeError('raw must be a OrderedDict')
 
@@ -47,11 +21,7 @@ class BaseObject:
         self.raw[key] = value
 
     @classmethod
-    def schema(cls, rand_gen):
-        pass
-
-    @classmethod
-    def _generate_column(cls, rand_gen, column_gen, cache):
+    def _generate_column(cls, rand_gen: Type[Random], column_gen, cache):
         if column_gen.none_prob:
             if rand_gen.bool_sample(column_gen.none_prob):
                 return None
@@ -76,18 +46,11 @@ class BaseObject:
         return [cls(raw) for raw in objects]
 
     @classmethod
-    def sample(cls, rand_gen, num_rows):
-        schema = cls.schema(rand_gen)
-        return {
-            cls.TABLE_NAME: cls.run_sampling(schema, num_rows)
-        }
-
-    @classmethod
-    def sample_from_source(cls, rand_gen, num_rows, source, cache) -> list:
+    def sample_from_source(cls, rand_gen, num_rows, source, cache) -> List:
         schema = cls.schema_from_source(rand_gen, source, cache)
         return cls.run_sampling(schema, num_rows)
 
-    def to_sql(self):
+    def to_sql(self) -> str:
         def to_str(value):
             if value is None:
                 return ''
@@ -96,18 +59,10 @@ class BaseObject:
 
         return '|'.join([to_str(value) for value in (self.raw.values())])
 
-    def set(self, key, value):
+    def set(self, key: str, value: Any):
+        """Set the value of an entry in the underlying map."""
         self.raw[key] = value
 
-    def get(self, key):
+    def get(self, key: str) -> Any:
+        """Retrieve a value from the underlying map."""
         return self.raw.get(key)
-
-    def hash(self):
-        return hash(frozenset(self.raw.items()))
-
-    def clone(self):
-        new_raw = self.__class__(OrderedDict())
-        for key, value in self.raw.items():
-            new_raw[key] = value
-
-        return new_raw

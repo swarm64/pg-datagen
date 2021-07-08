@@ -1,5 +1,5 @@
 
-from lib.base_object import Table
+from lib.table import Table
 
 TABLES = {
     'public.a': Table(schema_path='examples/simple/a.sql', scaler=1),

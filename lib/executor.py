@@ -9,10 +9,11 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 from importlib.machinery import SourceFileLoader
 from typing import AbstractSet, Any, Callable, Mapping, List, Sequence, Tuple, Type, Union
 
-from lib.base_object import BaseObject, Table
+from lib.base_object import BaseObject
 from lib.cache import Cache
 from lib.db import DB
 from lib.random import Random
+from lib.table import Table
 
 from loguru import logger
 

@@ -1,13 +1,21 @@
+"""
+This module provides core functionality for database access.
+"""
 
-import io
+from io import StringIO
+from typing import Mapping, Sequence, Type
 
 import psycopg2
 
 from loguru import logger
 
+from lib.base_object import BaseObject
+from lib.table import Column
+
 
 class DB:
-    def __init__(self, dsn):
+    """Helper class to provide core database functionality, e.g., running queries."""
+    def __init__(self, dsn: str):
         self.conn = None
         self.cur = None
         self.dsn = dsn
@@ -19,7 +27,7 @@ class DB:
 
         return self
 
-    def __exit__(self, type, value, traceback):
+    def __exit__(self, typ, value, traceback):
         if self.cur:
             self.cur.close()
 
@@ -27,15 +35,17 @@ class DB:
             self.conn.close()
 
     @classmethod
-    def _objs_to_csv(cls, objs):
-        data = io.StringIO()
+    def _objs_to_csv(cls, objs: Sequence[Type[BaseObject]]) -> Type[StringIO]:
+        data = StringIO()
         for obj in objs:
             data.write(obj.to_sql() + '\n')
 
         data.seek(0)
         return data
 
-    def ingest_table(self, table: str, schema: dict, objs: list):
+    def ingest_table(self, table: str, schema: Mapping[str, Type[Column]],
+                     objs: Sequence[BaseObject]):
+        """Ingest provided data into the target table."""
         logger.info(f'Ingesting { table }: { len(objs) }')
 
         columns = ','.join(
@@ -46,10 +56,12 @@ class DB:
             FROM STDIN
             WITH(FORMAT CSV, DELIMITER '|')''', DB._objs_to_csv(objs))
 
-    def truncate_table(self, table):
+    def truncate_table(self, table: str):
+        """Truncate the target table."""
         logger.info(f'Truncating { table }')
         self.cur.execute(f'TRUNCATE { table } CASCADE')
 
-    def vacuum_analyze_table(self, table):
+    def vacuum_analyze_table(self, table: str):
+        """VACUUM-ANALYZE the target table."""
         logger.info(f'Running VACUUM-ANALYZE on { table }')
         self.cur.execute(f'VACUUM ANALYZE { table }')

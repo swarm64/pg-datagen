@@ -1,5 +1,5 @@
 
-from lib.base_object import Table
+from lib.table import Table
 
 
 TABLES = {
