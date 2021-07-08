@@ -31,7 +31,7 @@ jobs:
 
       - name: Run pytest (with coverage)
         run: |
-          PYTHONPATH=. pytest --cov=lib tests/ | tee pytest-coverage.txt
+          PYTHONPATH=. pytest --cov=lib --cov-branch tests/ | tee pytest-coverage.txt
 
       - name: Comment coverage
         uses: coroo/pytest-coverage-commentator@v1.0.2
