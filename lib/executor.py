@@ -33,8 +33,13 @@ class Executor:
 
     def _generate_sequence(self) -> List[str]:
         """Traverse the graph in BFS manner creating a linear execution order."""
-        sequence = [self.entrypoint]
-        queue = [self.entrypoint]
+        if isinstance(self.entrypoint, list):
+            sequence = [*self.entrypoint]
+            queue = [*self.entrypoint]
+
+        else:
+            sequence = [self.entrypoint]
+            queue = [self.entrypoint]
 
         while queue:
             item = queue.pop(0)
