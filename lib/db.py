@@ -9,7 +9,7 @@ import psycopg2
 
 from loguru import logger
 
-from lib.base_object import BaseObject
+from lib.data_wrapper import DataWrapper
 from lib.table import Column
 
 
@@ -35,7 +35,7 @@ class DB:
             self.conn.close()
 
     @classmethod
-    def _objs_to_csv(cls, objs: Sequence[Type[BaseObject]]) -> Type[StringIO]:
+    def _objs_to_csv(cls, objs: Sequence[Type[DataWrapper]]) -> Type[StringIO]:
         data = StringIO()
         for obj in objs:
             data.write(obj.to_sql() + '\n')
@@ -44,7 +44,7 @@ class DB:
         return data
 
     def ingest_table(self, table: str, schema: Mapping[str, Type[Column]],
-                     objs: Sequence[BaseObject]):
+                     objs: Sequence[DataWrapper]):
         """Ingest provided data into the target table."""
         logger.info(f'Ingesting { table }: { len(objs) }')
 

@@ -65,7 +65,7 @@ You will have to provide a Python file as entrypoint. The minimum definition
 of such file for two tables `a` and `b` would look like this:
 
 ```python
-from lib.base_object import Table
+from lib.table import Table
 
 TABLES = {
   'public.a': Table(schema_path='...', scaler=1),

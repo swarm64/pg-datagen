@@ -3,7 +3,7 @@ from collections import OrderedDict
 
 import pytest
 
-from lib.base_object import BaseObject
+from lib.data_wrapper import DataWrapper
 from lib.schema_parser import Column
 
 

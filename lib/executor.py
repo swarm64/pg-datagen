@@ -9,7 +9,6 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 from importlib.machinery import SourceFileLoader
 from typing import AbstractSet, Any, Callable, Mapping, List, Sequence, Tuple, Type, Union
 
-from lib.base_object import BaseObject
 from lib.cache import Cache
 from lib.db import DB
 from lib.random import Random
@@ -80,24 +79,25 @@ class Executor:
 
         return max(1, math.ceil(rows_to_gen))
 
-    def _run_helper(self, sequence: Sequence[str],
+    def _run_helper(self, sequence: Sequence[Table],
                     deps: AbstractSet[Tuple[str, str]], seed: int,
                     num_rows: int) -> None:
         cache = Cache(deps)
 
         with DB(self.args.dsn) as dbconn:
             rand_gen = Random(seed=seed)
-            for table_name in sequence:
-                table = self.tables[table_name]
-
+            for table in sequence:
                 rows_to_gen = Executor._get_num_rows_to_gen(
                     rand_gen, num_rows, table.scaler)
 
-                logger.info(f'Generating {rows_to_gen} rows (seed {seed}) for table { table_name }')
+                logger.info(f'Generating {rows_to_gen} rows (seed {seed}) for table { table.name }')
 
-                data = BaseObject.sample_from_source(rand_gen, rows_to_gen, table.schema, cache)
-                dbconn.ingest_table(table_name, table.schema, data)
-                cache.add(table_name, data)
+                # data = BaseObject.sample_from_source(
+                #     rand_gen, rows_to_gen, table.schema, table_name, cache)
+                # cache.add(table_name, data)
+
+                data = table.generate_data(rand_gen, rows_to_gen, cache)
+                dbconn.ingest_table(table.name, table.schema, data)
 
     @classmethod
     def _execute_in_parallel(cls, executor: Type[ProcessPoolExecutor],
@@ -125,19 +125,29 @@ class Executor:
             else:
                 raise ValueError(f'Unknown DB command: { cmd }')
 
+    def _get_table_by_name(self, table_name: str) -> Table:
+        for table in self.tables:
+            if table.name == table_name:
+                return table
+
+        raise ValueError(f'Could not get table {table_name}')
+
     def run(self):
         """Main entrypoint to start the random data generator."""
         batches = self._get_batches()
+
         sequence = self._generate_sequence()
+        sequence = [self._get_table_by_name(table_name) for
+                    table_name in sequence]
 
         all_deps = set()
-        for table in self.tables.values():
+        for table in self.tables:
             deps = table.get_column_dependencies()
             all_deps.update(deps)
 
         with ProcessPoolExecutor(self.args.max_parallel_workers) as executor:
             if self.args.truncate:
-                tasks = [(self._run_db_cmd_on_table, ('truncate', table)) for table in sequence]
+                tasks = [(self._run_db_cmd_on_table, ('truncate', table.name)) for table in sequence]
                 Executor._execute_in_parallel(executor, tasks)
 
             tasks = []
@@ -147,5 +157,5 @@ class Executor:
             Executor._execute_in_parallel(executor, tasks)
 
             if self.args.vacuum_analyze:
-                tasks = [(self._run_db_cmd_on_table, ('vacuum-analyze', table)) for table in sequence]
+                tasks = [(self._run_db_cmd_on_table, ('vacuum-analyze', table.name)) for table in sequence]
                 Executor._execute_in_parallel(executor, tasks)
