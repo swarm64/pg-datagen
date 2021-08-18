@@ -138,7 +138,7 @@ class Schema:
 
                     assert column_gen, f'Column generator empty, column: {column}'
                     column = Column(column_gen, not_null, column_gen_args,
-                                    column_none_prob, False)
+                                    column_none_prob)
                     columns[column_name] = column
 
             alter_table_stmt = stmt.get('stmt', {}).get('AlterTableStmt', {})
