@@ -6,6 +6,7 @@ from collections import OrderedDict, namedtuple
 from dataclasses import dataclass
 from typing import Any, Type
 
+from loguru import logger
 from pglast.parser import parse_sql_json
 
 from lib.random import Random
@@ -48,6 +49,7 @@ class Column:
 
 class Schema:
     def __init__(self, path):
+        logger.info(f'Parsing { path }')
         with open(path, 'r') as schema_file:
             self.raw_schema = schema_file.read()
             self.schema = json.loads(parse_sql_json(self.raw_schema))
@@ -136,7 +138,7 @@ class Schema:
 
                     assert column_gen, f'Column generator empty, column: {column}'
                     column = Column(column_gen, not_null, column_gen_args,
-                                    column_none_prob)
+                                    column_none_prob, False)
                     columns[column_name] = column
 
             alter_table_stmt = stmt.get('stmt', {}).get('AlterTableStmt', {})
@@ -149,6 +151,8 @@ class Schema:
                             'Multiple keys in constraint not supported'
 
                         column_name = alter_table_def['keys'][0]['String']['str']
+                        logger.debug(f'Adding PK to { column_name }')
+
                         columns[column_name].not_null = True
 
         return columns

@@ -5,6 +5,7 @@ This module contains schema-related type definitions.
 from collections import namedtuple, OrderedDict
 from typing import Any, List, Set, Tuple, Type
 
+from loguru import logger
 from mimesis.schema import Schema
 
 import lib.schema_parser as schema_parser
@@ -26,14 +27,24 @@ class Table:
         self.scaler = scaler
         self.schema = schema_parser.Schema(self.schema_path).parse_create_table()
 
+    def __repr__(self):
+        return f'Table { self.name }'
+
     def get_column_dependencies(self) -> Set[Tuple[str, str]]:
-        """Return a set of (table, column) referenced by 'choose_from_list'"""
+        """Return a set of (<path>, <path>) referenced by 'choose_from_list'"""
         deps = set()
-        for column_gen in self.schema.values():
+        for column, column_gen in self.schema.items():
             if column_gen.gen.startswith('choose_from_list'):
-                path = column_gen.gen.split(' ')[1]
-                table, _, column = path.rpartition('.')
-                deps.add((table, column))
+                source = column_gen.gen.split(' ')[1]
+                target = f'{ self.name }.{ column }'
+
+                if source.startswith(self.name):
+                    logger.info(f'Self-Dep: { source }')
+                    deps.add((source, None))
+
+                else:
+                    logger.info(f'Dep: { source } -> { target }')
+                    deps.add((source, target))
 
         return deps
 
@@ -79,10 +90,9 @@ class Table:
         for column_name, column in linked_columns:
             data_path = column.gen.split(' ')[1]
             cache_entry = cache.retrieve(data_path)
+            assert cache_entry, f'Cache entry for { data_path } is empty.'
+
             for row in data:
                 row[column_name] = rand_gen.choose_from_list(cache_entry)
 
         return data
-
-        # return cls.run_sampling(
-        #     table_name, schema, num_rows, rand_gen, linked_columns, cache)

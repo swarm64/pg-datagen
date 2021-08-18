@@ -3,9 +3,11 @@ This module controls execution of the random data generator.
 """
 
 import math
+import operator
 import sys
 
 from concurrent.futures import ProcessPoolExecutor, as_completed
+from functools import reduce
 from importlib.machinery import SourceFileLoader
 from typing import AbstractSet, Any, Callable, Mapping, List, Sequence, Tuple, Type, Union
 
@@ -26,28 +28,29 @@ class Executor:
         self.args = args
 
         target = SourceFileLoader('target', args.target).load_module()
-        self.graph = target.GRAPH
-        self.entrypoint = target.ENTRYPOINT
+        self.entrypoint = []
         self.tables = target.TABLES
+        self.graph = { table.name: [] for table in self.tables }
 
     def _generate_sequence(self) -> List[str]:
-        """Traverse the graph in BFS manner creating a linear execution order."""
-        if isinstance(self.entrypoint, list):
-            sequence = [*self.entrypoint]
-            queue = [*self.entrypoint]
+        """Apply topological sort to the graph to find an execution sequence."""
+        def sort_util(table_name, visited, stack):
+            visited[table_name] = True
+            for dep in self.graph[table_name]:
+                if not visited[dep]:
+                    sort_util(dep, visited, stack)
 
-        else:
-            sequence = [self.entrypoint]
-            queue = [self.entrypoint]
+            table = self._get_table_by_name(table_name)
+            stack.insert(0, table)
 
-        while queue:
-            item = queue.pop(0)
-            for next_item in self.graph[item]:
-                if next_item not in sequence:
-                    sequence.append(next_item)
-                    queue.append(next_item)
+        visited = {table_name: False for table_name in self.graph.keys()}
+        stack = []
 
-        return sequence
+        for table in self.tables:
+            if not visited[table.name]:
+                sort_util(table.name, visited, stack)
+
+        return stack
 
     def _get_batches(self) -> List[Tuple[int, int]]:
         """Calculate batches based on runtime arguments."""
@@ -92,10 +95,6 @@ class Executor:
 
                 logger.info(f'Generating {rows_to_gen} rows (seed {seed}) for table { table.name }')
 
-                # data = BaseObject.sample_from_source(
-                #     rand_gen, rows_to_gen, table.schema, table_name, cache)
-                # cache.add(table_name, data)
-
                 data = table.generate_data(rand_gen, rows_to_gen, cache)
                 dbconn.ingest_table(table.name, table.schema, data)
 
@@ -136,14 +135,28 @@ class Executor:
         """Main entrypoint to start the random data generator."""
         batches = self._get_batches()
 
-        sequence = self._generate_sequence()
-        sequence = [self._get_table_by_name(table_name) for
-                    table_name in sequence]
-
         all_deps = set()
         for table in self.tables:
             deps = table.get_column_dependencies()
             all_deps.update(deps)
+
+        for source, target in all_deps:
+            # Ignore self-deps
+            if not target:
+                continue
+
+            source_table = source.rpartition('.')[0]
+            target_table = target.rpartition('.')[0]
+            self.graph[source_table].append(target_table)
+
+        table_deps = set(reduce(operator.add, self.graph.values()))
+        self.entrypoint = [table.name for table in self.tables
+                           if table.name not in table_deps]
+
+        assert self.entrypoint, 'Entrypoint(s) must not be empty.'
+        sequence = self._generate_sequence()
+
+        logger.debug(f'Determined sequence: { sequence }')
 
         with ProcessPoolExecutor(self.args.max_parallel_workers) as executor:
             if self.args.truncate:

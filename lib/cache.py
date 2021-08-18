@@ -10,49 +10,28 @@ from loguru import logger
 class Cache:
     """Cache to store objects required as dependencies later."""
 
-    _cache_map: Dict[str, List[str]]
     _store: Dict[str, List]
 
     def __init__(self, cache_map_source: AbstractSet[Tuple[str, str]]):
-        self._cache_map = Cache._build_cache_map(cache_map_source)
-
-        self._store = {}
-        self._prepare_cache_store()
+        self._store = {source_path: [] for source_path, _ in cache_map_source}
 
     @classmethod
     def build_path(cls, table: str, column: str) -> str:
         """Build a path for cache-lookups."""
         return f'{ table }.{ column }'
 
-    @classmethod
-    def _build_cache_map(cls, source: AbstractSet[Tuple[str, str]]) -> Dict[str, List[str]]:
-        logger.debug('Building cache map')
-        cache_map = {}
-        for table, column in source:
-            logger.debug(f'Adding { table }.{ column } to cache map')
-            if table not in cache_map:
-                cache_map[table] = []
-            cache_map[table].append(column)
-
-        return cache_map
-
-    def _prepare_cache_store(self) -> None:
-        for table, columns in self._cache_map.items():
-            for column in columns:
-                path = Cache.build_path(table, column)
-                self._store[path] = []
-
     def add(self, table_name: str, data: Sequence[Mapping[str, Sequence]]) -> None:
         """Cache all columns that need to be cached."""
-        columns = self._cache_map.get(table_name)
-        if not columns:
+        column_paths = [column_path for column_path in self._store.keys()
+                        if column_path.startswith(table_name)]
+        if not column_paths:
             return
 
-        logger.debug(f'Caching { table_name } data for columns { columns }.')
+        logger.debug(f'Caching { table_name } data for paths { column_paths }.')
         for row in data:
-            for column in columns:
-                path = Cache.build_path(table_name, column)
-                self._store[path].append(row.get(column))
+            for column_path in column_paths:
+                column_name = column_path.rpartition('.')[2]
+                self._store[column_path].append(row.get(column_name))
 
     def retrieve(self, path: str) -> Sequence[Any]:
         """Retrieve a cached object by its path."""
