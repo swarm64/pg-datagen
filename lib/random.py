@@ -1,6 +1,7 @@
 
 import hashlib
 import random
+import string
 
 from datetime import timedelta
 from uuid import uuid4
@@ -14,6 +15,7 @@ from numpy.random import default_rng
 
 from .random_data import RandomData
 
+STR_SEQ = string.ascii_letters + string.digits
 
 class Random:
     UTF8_ALPHABET = [
@@ -160,7 +162,8 @@ class Random:
 
     def string(self, length):
         """Generate a random string of length between min & max chars."""
-        return mimesis_random.random.randstr(length=length)
+        return mimesis_random.random.generate_string(
+            str_seq=STR_SEQ, length=length)
 
     def varchar(self, max_chars=255):
         length = self.whole_number(1, max_chars)
