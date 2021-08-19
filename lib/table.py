@@ -73,6 +73,24 @@ class Table:
 
         return data
 
+    def _generate_data_linked_column(self, column_name, column, cache, rand_gen, data):
+        data_path = column.gen.split(' ')[1]
+        if column.gen.startswith('choose_from_list'):
+            logger.debug(f'Retrieving data from cache for: { data_path }')
+            cache_entry = cache.retrieve(data_path)
+
+        elif column.gen.startswith('choose_from_static_list'):
+            logger.debug(f'Retrieving static data for: { data_path }')
+            cache_entry = rand_gen.static_data[data_path]
+
+        else:
+            raise ValueError(f'Column generator { column.gen } not supported.')
+
+        assert cache_entry, f'Cache entry for { data_path } is empty.'
+
+        for row in data:
+            row[column_name] = rand_gen.choose_from_list(cache_entry)
+
     def generate_data(self, rand_gen, num_rows, cache) -> List:
     # def sample_from_source(cls, rand_gen, num_rows, source, table_name, cache) -> List:
         """Sample num_rows on the provided source."""
@@ -88,14 +106,7 @@ class Table:
 
         # 2nd pass to satisfy linked columns, either to self or another table
         for column_name, column in linked_columns:
-            data_path = column.gen.split(' ')[1]
-            logger.debug(f'Retrieving data from cache for: { data_path }')
-
-            cache_entry = cache.retrieve(data_path)
-            assert cache_entry, f'Cache entry for { data_path } is empty.'
-
-            for row in data:
-                row[column_name] = rand_gen.choose_from_list(cache_entry)
+            self._generate_data_linked_column(column_name, column, cache, rand_gen, data)
 
         # Update cache
         cache.add(self.name, data)

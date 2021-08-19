@@ -30,6 +30,7 @@ class Executor:
         target = SourceFileLoader('target', args.target).load_module()
         self.entrypoint = []
         self.tables = target.TABLES
+        self.static_data = target.STATIC_DATA
         self.graph = { table.name: [] for table in self.tables }
 
     def _generate_sequence(self) -> List[str]:
@@ -88,7 +89,7 @@ class Executor:
         cache = Cache(deps)
 
         with DB(self.args.dsn) as dbconn:
-            rand_gen = Random(seed)
+            rand_gen = Random(seed, self.static_data)
             for table in sequence:
                 rows_to_gen = Executor._get_num_rows_to_gen(
                     rand_gen, num_rows, table.scaler)

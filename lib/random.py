@@ -36,11 +36,12 @@ class Random:
         ] for code in range(this_range[0], this_range[1] + 1)
     ]
 
-    def __init__(self, seed):
+    def __init__(self, seed, static_data):
         self.seed = seed
         self.md5_counter = 0
         self.rng = default_rng(seed=seed)
         self.field = Field('en', seed=seed)
+        self.static_data = static_data
 
         random.seed(seed)
 
@@ -159,6 +160,10 @@ class Random:
         """Returns a choice from a provided list."""
         values = self.rng.choice(choices, size=picks, p=probs)
         return values
+
+    def choose_from_static_list(self, name, picks=None):
+        data = self.static_data[name]
+        return self.choose_from_list(data, picks=picks)
 
     def data(self, uuid, data_type, serialization_type, length):
         """Get random data."""
