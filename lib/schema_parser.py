@@ -98,7 +98,7 @@ class Schema:
         return column_gen, column_none_prob
 
     @classmethod
-    def _get_column_gen_args(cls, column_gen, column):
+    def _get_column_gen_args(cls, column_gen, column, full_table_name):
         typmods = column['typeName'].get('typmods', [])
         if column_gen == 'varchar' or column_gen == 'bpchar':
             # Varchar can have an upper limit
@@ -112,6 +112,12 @@ class Schema:
             scale = typmods[1]['A_Const']['val']['Integer']['ival']
             return [precision, scale]
 
+        elif column_gen == 'md5':
+            # MD5 requires a prefix
+            column_name = column['colname']
+            prefix = f'{ full_table_name }.{ column_name }'
+            return [prefix]
+
         return []
 
 
@@ -123,12 +129,14 @@ class Schema:
             if create_stmt:
                 schema_name = create_stmt['relation'].get('schemaname', 'public')
                 table_name = create_stmt['relation']['relname']
+                full_table_name = f'{ schema_name }.{ table_name }'
 
                 for column in create_stmt['tableElts']:
                     column = column['ColumnDef']
                     column_name = column['colname']
                     column_gen, column_none_prob = self._get_column_gen(column)
-                    column_gen_args = Schema._get_column_gen_args(column_gen, column)
+                    column_gen_args = Schema._get_column_gen_args(
+                        column_gen, column, full_table_name)
 
                     constraints = column.get('constraints', [])
                     not_null = False

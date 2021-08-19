@@ -88,7 +88,7 @@ class Executor:
         cache = Cache(deps)
 
         with DB(self.args.dsn) as dbconn:
-            rand_gen = Random(seed=seed)
+            rand_gen = Random(seed)
             for table in sequence:
                 rows_to_gen = Executor._get_num_rows_to_gen(
                     rand_gen, num_rows, table.scaler)

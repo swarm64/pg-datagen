@@ -36,8 +36,9 @@ class Random:
         ] for code in range(this_range[0], this_range[1] + 1)
     ]
 
-    def __init__(self, seed=0):
+    def __init__(self, seed):
         self.seed = seed
+        self.md5_counter = 0
         self.rng = default_rng(seed=seed)
         self.field = Field('en', seed=seed)
 
@@ -146,9 +147,12 @@ class Random:
         """Returns X from mimesis."""
         return self.field(what)
 
-    def md5(self):
+    def md5(self, prefix):
         """Returns random md5 string."""
-        data_md5 = hashlib.new('md5', self.uuid().bytes, usedforsecurity=False)
+        data = f'{ prefix } { self.seed } { self.md5_counter }'.encode('utf-8')
+        data_md5 = hashlib.new('md5', data, usedforsecurity=False)
+        self.md5_counter += 1
+
         return data_md5.hexdigest()
 
     def choose_from_list(self, choices, picks=None, probs=None):
