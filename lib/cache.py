@@ -21,7 +21,7 @@ class Cache:
         return f'{ table }.{ column }'
 
     def add(self, table_name: str, data: Sequence[Mapping[str, Sequence]]) -> None:
-        """Cache all columns that need to be cached."""
+        """Cache all columns that need to be cached. Clears before assignment."""
         column_paths = [column_path for column_path in self._store.keys()
                         if column_path.startswith(table_name)]
         if not column_paths:
@@ -30,6 +30,7 @@ class Cache:
         logger.debug(f'Caching { table_name } data for paths { column_paths }.')
         for row in data:
             for column_path in column_paths:
+                self._store[column_path] = []
                 column_name = column_path.rpartition('.')[2]
                 self._store[column_path].append(row.get(column_name))
 

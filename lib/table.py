@@ -89,10 +89,15 @@ class Table:
         # 2nd pass to satisfy linked columns, either to self or another table
         for column_name, column in linked_columns:
             data_path = column.gen.split(' ')[1]
+            logger.debug(f'Retrieving data from cache for: { data_path }')
+
             cache_entry = cache.retrieve(data_path)
             assert cache_entry, f'Cache entry for { data_path } is empty.'
 
             for row in data:
                 row[column_name] = rand_gen.choose_from_list(cache_entry)
+
+        # Update cache
+        cache.add(self.name, data)
 
         return data
